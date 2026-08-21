@@ -106,7 +106,8 @@ console.log(renderTimeline(events, { tool: 'run_tests', maxArgLength: 40 }));
 
 - `parseTrace(text): { events, issues }` -- never throws; unusable lines land in
   `issues` as `{ line, message, raw }`.
-- `parseTraceStrict(text): TraceEvent[]` -- throws if anything was unusable.
+- `parseTraceStrict(text): TraceEvent[]` -- throws `TraceParseError` (with an
+  `issues` property) if anything was unusable.
 - `parseTraceLine(raw, line?): LineResult` -- single line, for streaming callers.
 - `pairToolEvents(events): { spans, orphans }` -- calls matched to their results,
   each span carrying `durationMs` and `ok`.

@@ -1,0 +1,46 @@
+export type Usage = {
+  inputTokens?: number;
+  outputTokens?: number;
+};
+
+export type UserEvent = {
+  type: 'user';
+  ts?: number;
+  text?: string;
+};
+
+export type AssistantEvent = {
+  type: 'assistant';
+  ts?: number;
+  text?: string;
+  usage?: Usage;
+};
+
+export type ToolCallEvent = {
+  type: 'tool_call';
+  ts?: number;
+  id?: string;
+  name?: string;
+  args?: unknown;
+};
+
+export type ToolResultEvent = {
+  type: 'tool_result';
+  ts?: number;
+  id?: string;
+  ok?: boolean;
+  durationMs?: number;
+  output?: unknown;
+};
+
+export type TraceEvent = UserEvent | AssistantEvent | ToolCallEvent | ToolResultEvent;
+
+export type ParseIssue = {
+  line: number;
+  message: string;
+  raw: string;
+};
+
+export type LineResult =
+  | { ok: true; event: TraceEvent }
+  | { ok: false; issue: ParseIssue };
