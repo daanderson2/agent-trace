@@ -44,3 +44,19 @@ export type ParseIssue = {
 export type LineResult =
   | { ok: true; event: TraceEvent }
   | { ok: false; issue: ParseIssue };
+
+export type ToolSpan = {
+  id?: string;
+  name?: string;
+  args?: unknown;
+  callTs?: number;
+  ok?: boolean;
+  output?: unknown;
+  durationMs?: number;
+  pending: boolean;
+};
+
+export type PairResult = {
+  spans: ToolSpan[];
+  orphans: ToolResultEvent[];
+};
