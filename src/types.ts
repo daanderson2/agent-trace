@@ -60,3 +60,31 @@ export type PairResult = {
   spans: ToolSpan[];
   orphans: ToolResultEvent[];
 };
+
+export type ToolStat = {
+  name: string;
+  calls: number;
+  failures: number;
+  totalMs: number;
+  avgMs: number;
+  maxMs: number;
+  timeShare: number;
+};
+
+export type TraceStats = {
+  eventCounts: Record<TraceEvent['type'], number>;
+  totalEvents: number;
+  wallClockMs: number | undefined;
+  toolTimeMs: number;
+  toolTimeShare: number | undefined;
+  calls: number;
+  completedCalls: number;
+  pendingCalls: number;
+  failedCalls: number;
+  failureRate: number | undefined;
+  orphanResults: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  tools: ToolStat[];
+};
