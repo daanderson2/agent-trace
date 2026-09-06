@@ -71,6 +71,12 @@ export type ToolStat = {
   timeShare: number;
 };
 
+export type RenderTimelineOptions = {
+  tool?: string;
+  maxArgLength?: number;
+  showText?: boolean;
+};
+
 export type TraceStats = {
   eventCounts: Record<TraceEvent['type'], number>;
   totalEvents: number;

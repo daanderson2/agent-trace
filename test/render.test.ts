@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderStats } from '../src/render.ts';
-import type { TraceStats } from '../src/types.ts';
+import { renderStats, renderTimeline } from '../src/render.ts';
+import type { TraceEvent, TraceStats } from '../src/types.ts';
 
 // Mirrors the "stats on the bundled example" block in the README, so the two
 // stay honest with each other.
@@ -146,4 +146,79 @@ test('widens table columns to fit a long tool name', () => {
   assert.equal(header.length, row.length);
   assert.ok(row.startsWith('a_very_long_tool_name'));
   assert.equal(header.indexOf('calls'), 'a_very_long_tool_name'.length + 2);
+});
+
+function timeOf(ts: number): string {
+  return new Date(ts).toISOString().slice(11, 23);
+}
+
+test('renderTimeline merges a tool call with its result into one line, in event order', () => {
+  const callTs = Date.UTC(2026, 0, 1, 12, 0, 0, 0);
+  const resultTs = Date.UTC(2026, 0, 1, 12, 0, 0, 54);
+  const events: TraceEvent[] = [
+    { type: 'user', ts: callTs, text: 'run the tests' },
+    { type: 'tool_call', ts: callTs, id: 'c1', name: 'run_tests', args: { pattern: '*.spec.ts' } },
+    { type: 'tool_result', ts: resultTs, id: 'c1', ok: true, durationMs: 54, output: 'ok' },
+  ];
+  const lines = renderTimeline(events).split('\n');
+  assert.equal(lines.length, 2);
+  assert.ok(lines[0].startsWith(timeOf(callTs)));
+  assert.ok(lines[0].includes('user') && lines[0].endsWith('run the tests'));
+  assert.ok(lines[1].startsWith(timeOf(callTs)));
+  assert.ok(lines[1].includes('run_tests {"pattern":"*.spec.ts"}'));
+  assert.ok(lines[1].endsWith('ok 54ms'));
+  // no separate line for the tool_result that got merged into the call's line
+  assert.ok(!lines.some((l) => l.includes('unmatched')));
+});
+
+test('renderTimeline shows a failed, pending, and orphan span distinctly', () => {
+  const events: TraceEvent[] = [
+    { type: 'tool_call', id: 'c1', name: 'apply_patch' },
+    { type: 'tool_result', id: 'c1', ok: false },
+    { type: 'tool_call', id: 'c2', name: 'read_file' },
+    { type: 'tool_result', id: 'does-not-exist', ok: true },
+  ];
+  const lines = renderTimeline(events).split('\n');
+  assert.ok(lines[0].includes('apply_patch') && lines[0].endsWith('failed'));
+  assert.ok(lines[1].includes('read_file') && lines[1].endsWith('pending'));
+  assert.ok(lines[2].includes('orphan') && lines[2].includes('does-not-exist'));
+});
+
+test('renderTimeline hides user and assistant lines when showText is false', () => {
+  const events: TraceEvent[] = [
+    { type: 'user', text: 'hi' },
+    { type: 'assistant', text: 'sure', usage: { inputTokens: 10, outputTokens: 2 } },
+    { type: 'tool_call', id: 'c1', name: 'read_file' },
+    { type: 'tool_result', id: 'c1', ok: true },
+  ];
+  const withText = renderTimeline(events).split('\n');
+  assert.equal(withText.length, 3);
+  assert.ok(withText[1].includes('(10 in / 2 out)'));
+
+  const withoutText = renderTimeline(events, { showText: false }).split('\n');
+  assert.equal(withoutText.length, 1);
+  assert.ok(withoutText[0].includes('read_file'));
+});
+
+test('renderTimeline restricts to a single tool and drops orphan lines', () => {
+  const events: TraceEvent[] = [
+    { type: 'tool_call', id: 'c1', name: 'read_file' },
+    { type: 'tool_result', id: 'c1', ok: true },
+    { type: 'tool_call', id: 'c2', name: 'run_tests' },
+    { type: 'tool_result', id: 'c2', ok: true },
+    { type: 'tool_result', id: 'does-not-exist', ok: true },
+  ];
+  const lines = renderTimeline(events, { tool: 'run_tests' }).split('\n');
+  assert.equal(lines.length, 1);
+  assert.ok(lines[0].includes('run_tests'));
+});
+
+test('renderTimeline truncates long tool args to maxArgLength', () => {
+  const events: TraceEvent[] = [
+    { type: 'tool_call', id: 'c1', name: 'read_file', args: { path: 'a'.repeat(20) } },
+  ];
+  const lines = renderTimeline(events, { maxArgLength: 10 }).split('\n');
+  const argsText = JSON.stringify({ path: 'a'.repeat(20) });
+  assert.ok(lines[0].includes(`${argsText.slice(0, 9)}…`));
+  assert.ok(!lines[0].includes(argsText));
 });
