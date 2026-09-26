@@ -128,4 +128,4 @@ npm test
 
 ## License
 
-MIT (c) ssmith
+MIT (c) daanderson2
