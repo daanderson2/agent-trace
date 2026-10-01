@@ -16,6 +16,7 @@ import {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const EXAMPLE_PATH = path.join(here, '..', 'examples', 'session.jsonl');
+const MIXED_PATH = path.join(here, 'fixtures', 'mixed-timestamps.jsonl');
 
 // This is the exact table printed in the README's "CLI" section. If either
 // drifts -- the fixture, the render format, or the doc -- this test breaks.
@@ -55,6 +56,37 @@ test('parseTraceStrict throws TraceParseError, exported from the package root, o
 test('parseTraceLine is usable standalone, without parseTrace, for streaming callers', () => {
   const result = parseTraceLine('{"role":"user","timestamp":5,"text":"hi"}');
   assert.deepEqual(result, { ok: true, event: { type: 'user', ts: 5, text: 'hi' } });
+});
+
+// Real logs often stamp only some events. Durations can only come from calls
+// whose call and result both carry a timestamp; the rest must stay unmeasured
+// instead of being counted as zero.
+test('a trace where only some events carry timestamps is measured only where it can be', () => {
+  const text = readFileSync(MIXED_PATH, 'utf8');
+  const { events, issues } = parseTrace(text);
+  assert.equal(issues.length, 0);
+  assert.equal(events.length, 9);
+
+  const { spans } = pairToolEvents(events);
+  assert.deepEqual(
+    spans.map((s) => s.durationMs),
+    [500, undefined, undefined],
+  );
+
+  const stats = computeStats(events);
+  assert.equal(stats.wallClockMs, 800);
+  assert.equal(stats.toolTimeMs, 500);
+  assert.equal(stats.toolTimeShare, 0.625);
+  assert.equal(stats.completedCalls, 3);
+  assert.equal(stats.failedCalls, 1);
+  assert.equal(stats.inputTokens, 500);
+
+  const runTests = stats.tools.find((t) => t.name === 'run_tests');
+  assert.equal(runTests?.totalMs, 500);
+  assert.equal(runTests?.avgMs, 500);
+  const readFile = stats.tools.find((t) => t.name === 'read_file');
+  assert.equal(readFile?.calls, 1);
+  assert.equal(readFile?.avgMs, 0);
 });
 
 test('pairToolEvents and renderTimeline compose over parseTrace output', () => {

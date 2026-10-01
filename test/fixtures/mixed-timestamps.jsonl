@@ -1,0 +1,9 @@
+{"type":"user","text":"run the suite"}
+{"type":"assistant","ts":1000,"text":"running it","usage":{"input_tokens":500,"output_tokens":20}}
+{"type":"tool_call","ts":1100,"id":"a","name":"run_tests"}
+{"type":"tool_result","ts":1600,"id":"a","ok":true}
+{"type":"tool_call","id":"b","name":"read_file"}
+{"type":"tool_result","ts":1700,"id":"b","ok":true}
+{"type":"tool_call","ts":1800,"id":"c","name":"run_tests"}
+{"type":"tool_result","id":"c","ok":false}
+{"type":"assistant","text":"one failure, looking"}
